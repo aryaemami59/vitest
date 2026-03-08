@@ -673,53 +673,53 @@ export type TestAPI<ExtraContext = object> = ChainableTestAPI<ExtraContext>
       // Function overloads (with cleanup support via onCleanup)
       // When extending with same key, T must match existing type (last value wins at runtime)
       // Overload 1: Worker scope function - can only access worker fixtures
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
-        options: WorkerScopeFixtureOptions,
-        fn: BuilderFixtureFn<T, WorkerScopeContext<ExtraContext>>,
-      ): TestAPI<AddBuilderWorker<ExtraContext, K, T>>
+        options: Extract<AllFixtureOptions, { scope: ScopeType }>,
+        fn: BuilderFixtureFn<T, ScopeContext<ExtraContext, `$__${ScopeType}`>>,
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
       // Overload 2: File scope function - can access worker + file fixtures
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
-        options: FileScopeFixtureOptions,
-        fn: BuilderFixtureFn<T, FileScopeContext<ExtraContext>>,
-      ): TestAPI<AddBuilderFile<ExtraContext, K, T>>
+        options: Extract<AllFixtureOptions, { scope: ScopeType }>,
+        fn: BuilderFixtureFn<T, ScopeContext<ExtraContext, `$__${ScopeType}`>>,
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
       // Overload 3: Test scope function with options - can access all fixtures
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
-        options: TestScopeFixtureOptions,
-        fn: BuilderFixtureFn<T, TestScopeContext<ExtraContext>>,
-      ): TestAPI<AddBuilderTest<ExtraContext, K, T>>
+        options: Extract<AllFixtureOptions, { scope?: ScopeType }>,
+        fn: BuilderFixtureFn<T, ScopeContext<ExtraContext, `$__${ScopeType}`>>,
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
       // Overload 4: Test scope function default (no options) - can access all fixtures
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
-        fn: BuilderFixtureFn<T, TestScopeContext<ExtraContext>>,
-      ): TestAPI<AddBuilderTest<ExtraContext, K, T>>
+        fn: BuilderFixtureFn<T, ScopeContext<ExtraContext, `$__${ScopeType}`>>,
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
 
       // Non-function value overloads (simple values without cleanup)
       // Overload 5: Static value with worker scope options
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
-        options: WorkerScopeFixtureOptions,
+        options: Extract<AllFixtureOptions, { scope: ScopeType }>,
         value: T extends (...args: any[]) => any ? never : T,
-      ): TestAPI<AddBuilderWorker<ExtraContext, K, T>>
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
       // Overload 6: Static value with file scope options
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
-        options: FileScopeFixtureOptions,
+        options: Extract<AllFixtureOptions, { scope: ScopeType }>,
         value: T extends (...args: any[]) => any ? never : T,
-      ): TestAPI<AddBuilderFile<ExtraContext, K, T>>
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
       // Overload 7: Static value with test scope options
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
-        options: TestScopeFixtureOptions,
+        options: Extract<AllFixtureOptions, { scope?: ScopeType }>,
         value: T extends (...args: any[]) => any ? never : T,
-      ): TestAPI<AddBuilderTest<ExtraContext, K, T>>
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
       // Overload 8: Static value default (no options) - must exclude functions
-      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown)>(
+      <K extends string, T extends (K extends keyof ExtraContext ? ExtraContext[K] : unknown), ScopeType extends ScopedFixtureKey>(
         name: K,
         value: T extends (...args: any[]) => any ? never : T,
-      ): TestAPI<AddBuilderTest<ExtraContext, K, T>>
+      ): TestAPI<AddBuilder<ExtraContext, K, T, `$__${ScopeType}`>>
 
       // Object syntax overloads
       // Overload 9: Scoped fixtures with { $test?, $file?, $worker? } structure
@@ -828,38 +828,57 @@ export interface FixtureOptions {
   scope?: 'test' | 'worker' | 'file'
 }
 
-/**
- * Options for test-scoped fixtures.
- * Test fixtures are set up before each test and have access to all fixtures.
- */
-export interface TestScopeFixtureOptions extends Omit<FixtureOptions, 'scope'> {
+export type AllFixtureOptions = Omit<FixtureOptions, 'scope'> & ({
   /**
    * @default 'test'
    */
   scope?: 'test'
 }
-
-/**
- * Options for file-scoped fixtures.
- * File fixtures are set up once per file and can only access other file fixtures and worker fixtures.
- */
-export interface FileScopeFixtureOptions extends Omit<FixtureOptions, 'scope'> {
+| {
   /**
    * Must be 'file' for file-scoped fixtures.
    */
   scope: 'file'
 }
+| {
+  /**
+   * Must be 'worker' for worker-scoped fixtures.
+   */
+  scope: 'worker'
+})
+
+/**
+ * Options for test-scoped fixtures.
+ * Test fixtures are set up before each test and have access to all fixtures.
+ */
+// export interface TestScopeFixtureOptions extends Omit<FixtureOptions, 'scope'> {
+//   /**
+//    * @default 'test'
+//    */
+//   scope?: 'test'
+// }
+
+/**
+ * Options for file-scoped fixtures.
+ * File fixtures are set up once per file and can only access other file fixtures and worker fixtures.
+ */
+// export interface FileScopeFixtureOptions extends Omit<FixtureOptions, 'scope'> {
+//   /**
+//    * Must be 'file' for file-scoped fixtures.
+//    */
+//   scope: 'file'
+// }
 
 /**
  * Options for worker-scoped fixtures.
  * Worker fixtures are set up once per worker and can only access other worker fixtures.
  */
-export interface WorkerScopeFixtureOptions extends Omit<FixtureOptions, 'scope'> {
-  /**
-   * Must be 'worker' for worker-scoped fixtures.
-   */
-  scope: 'worker'
-}
+// export interface WorkerScopeFixtureOptions extends Omit<FixtureOptions, 'scope'> {
+//   /**
+//    * Must be 'worker' for worker-scoped fixtures.
+//    */
+//   scope: 'worker'
+// }
 
 export type Use<T> = (value: T) => Promise<void>
 
@@ -888,58 +907,90 @@ export type BuilderFixtureFn<T, Context> = (
   fixture: { onCleanup: OnCleanup },
 ) => T | Promise<T>
 
-export type ExtractSuiteContext<C>
-  = C extends { $__worker?: any } | { $__file?: any } | { $__test?: any }
-    ? ExtractBuilderWorker<C> & ExtractBuilderFile<C>
-    : C
+export type ExtractSuiteContext<FixtureContext> = FixtureContext extends {
+  [ScopedFixtureKey in ScopedFixtureIdentifier]: { [P in ScopedFixtureKey]?: any }
+}[ScopedFixtureIdentifier]
+  ? ExtractBuilder<FixtureContext, '$__worker'> & ExtractBuilder<FixtureContext, '$__file'>
+  : FixtureContext
+
+export type ScopedFixtureKey
+  = NonNullable<keyof ScopedFixturesDef> extends `$${infer Scope extends string}` ? Scope : never
+
+export type ScopedFixtureIdentifier = `$__${ScopedFixtureKey}`
+
+export type ExtractBuilder<
+  Context,
+  TaskContextKey extends ScopedFixtureIdentifier,
+> = Context extends { [ScopedKey in TaskContextKey]?: infer Builder }
+  ? Builder extends Record<string, any>
+    ? Builder
+    : object
+  : object
 
 /**
  * Extracts worker-scoped fixtures from a context that includes scope info.
  */
-export type ExtractBuilderWorker<C> = C extends { $__worker?: infer W }
-  ? W extends Record<string, any> ? W : object
-  : object
+// export type ExtractBuilderWorker<C> = C extends { $__worker?: infer W }
+//   ? W extends Record<string, any> ? W : object
+//   : object
 
 /**
  * Extracts file-scoped fixtures from a context that includes scope info.
  */
-export type ExtractBuilderFile<C> = C extends { $__file?: infer F }
-  ? F extends Record<string, any> ? F : object
-  : object
+// export type ExtractBuilderFile<C> = C extends { $__file?: infer F }
+//   ? F extends Record<string, any> ? F : object
+//   : object
 
 /**
  * Extracts test-scoped fixtures from a context that includes scope info.
  */
-export type ExtractBuilderTest<C> = C extends { $__test?: infer T }
-  ? T extends Record<string, any> ? T : object
-  : object
+// export type ExtractBuilderTest<C> = C extends { $__test?: infer T }
+//   ? T extends Record<string, any> ? T : object
+//   : object
 
 /**
  * Adds a worker fixture to the context with proper scope tracking.
  */
-export type AddBuilderWorker<C, K extends string, V> = Omit<C, '$__worker'> & Record<K, V> & {
-  readonly $__worker?: ExtractBuilderWorker<C> & Record<K, V>
-  readonly $__file?: ExtractBuilderFile<C>
-  readonly $__test?: ExtractBuilderTest<C>
-}
+// export type AddBuilderWorker<BuilderContext, K extends string, V> = Omit<
+//   BuilderContext,
+//   '$__worker'
+// >
+// & Record<K, V> & {
+//   readonly $__worker?: ExtractBuilder<BuilderContext, '$__worker'> & Record<K, V>
+//   readonly $__file?: ExtractBuilder<BuilderContext, '$__file'>
+//   readonly $__test?: ExtractBuilder<BuilderContext, '$__test'>
+// }
+
+export type AddBuilder<
+  BuilderContext,
+  Key extends string,
+  ValueType,
+  FixtureKey extends ScopedFixtureIdentifier,
+> = Omit<BuilderContext, FixtureKey>
+  & Record<Key, ValueType> & {
+    readonly [FixtureKeyType in ScopedFixtureIdentifier]?: FixtureKeyType extends FixtureKey ? (ExtractBuilder<BuilderContext, FixtureKeyType> & Record<Key, ValueType>)
+      : ExtractBuilder<BuilderContext, FixtureKeyType>
+  }
 
 /**
  * Adds a file fixture to the context with proper scope tracking.
  */
-export type AddBuilderFile<C, K extends string, V> = Omit<C, '$__file'> & Record<K, V> & {
-  readonly $__worker?: ExtractBuilderWorker<C>
-  readonly $__file?: ExtractBuilderFile<C> & Record<K, V>
-  readonly $__test?: ExtractBuilderTest<C>
-}
+// export type AddBuilderFile<C, K extends string, V> = Omit<C, '$__file'>
+//   & Record<K, V> & {
+//     readonly $__worker?: ExtractBuilder<C, '$__worker'>
+//     readonly $__file?: ExtractBuilder<C, '$__file'> & Record<K, V>
+//     readonly $__test?: ExtractBuilder<C, '$__test'>
+//   }
 
 /**
  * Adds a test fixture to the context with proper scope tracking.
  */
-export type AddBuilderTest<C, K extends string, V> = Omit<C, '$__test'> & Record<K, V> & {
-  readonly $__worker?: ExtractBuilderWorker<C>
-  readonly $__file?: ExtractBuilderFile<C>
-  readonly $__test?: ExtractBuilderTest<C> & Record<K, V>
-}
+export type ScopeContext<TaskContext, FixtureScopeKey extends ScopedFixtureIdentifier>
+  = FixtureScopeKey extends Extract<ScopedFixtureIdentifier, '$__file'>
+    ? ExtractBuilder<TaskContext, FixtureScopeKey> & ExtractBuilder<TaskContext, '$__worker'>
+    : FixtureScopeKey extends Extract<ScopedFixtureIdentifier, '$__test'>
+      ? TaskContext & TestContext
+      : ExtractBuilder<TaskContext, FixtureScopeKey>
 
 /**
  * Context available to worker-scoped fixtures.
@@ -947,7 +998,7 @@ export type AddBuilderTest<C, K extends string, V> = Omit<C, '$__test'> & Record
  * They do NOT have access to test context (task, expect, onTestFailed, etc.)
  * since they run once per worker, outside of any specific test.
  */
-export type WorkerScopeContext<C> = ExtractBuilderWorker<C>
+// export type WorkerScopeContext<C> = ExtractBuilder<C, '$__worker'>
 
 /**
  * Context available to file-scoped fixtures.
@@ -955,12 +1006,13 @@ export type WorkerScopeContext<C> = ExtractBuilderWorker<C>
  * They do NOT have access to test context (task, expect, onTestFailed, etc.)
  * since they run once per file, outside of any specific test.
  */
-export type FileScopeContext<C> = ExtractBuilderWorker<C> & ExtractBuilderFile<C>
+// export type FileScopeContext<C> = ExtractBuilder<C, '$__worker'>
+//   & ExtractBuilder<C, '$__file'>
 
 /**
  * Context available to test-scoped fixtures (all fixtures + test context).
  */
-export type TestScopeContext<C> = C & TestContext
+// export type TestScopeContext<C> = C & TestContext
 export type FixtureFn<T, K extends keyof T, ExtraContext> = (
   context: Omit<T, K> & ExtraContext,
   use: Use<T[K]>,
@@ -1002,9 +1054,9 @@ export type Fixtures<T, ExtraContext = object> = {
  * @example
  * ```ts
  * test.extend<{
- *   $worker?: { config: Config }
- *   $file?: { db: Database }
- *   $test?: { data: string }
+ *   $worker?: { config: Config };
+ *   $file?: { db: Database };
+ *   $test?: { data: string };
  * }>({ ... })
  * ```
  */
@@ -1034,15 +1086,15 @@ export type ScopedFixturesObject<T extends ScopedFixturesDef, ExtraContext = obj
   [K in keyof NonNullable<T['$test']>]:
     | NonNullable<T['$test']>[K]
     | ScopedFixtureFn<NonNullable<T['$test']>[K], ExtractScopedFixtures<T> & ExtraContext & TestContext>
-    | [ScopedFixtureFn<NonNullable<T['$test']>[K], ExtractScopedFixtures<T> & ExtraContext & TestContext>, TestScopeFixtureOptions?]
+    | [ScopedFixtureFn<NonNullable<T['$test']>[K], ExtractScopedFixtures<T> & ExtraContext & TestContext>, Extract<AllFixtureOptions, { scope?: 'test' }>?]
 } & {
   // File fixtures - scope: 'file' is REQUIRED, NO TestContext access
   [K in keyof NonNullable<T['$file']>]:
-  [ScopedFixtureFn<NonNullable<T['$file']>[K], (NonNullable<T['$file']> & NonNullable<T['$worker']>) & ExtraContext>, FileScopeFixtureOptions]
+  [ScopedFixtureFn<NonNullable<T['$file']>[K], (NonNullable<T['$file']> & NonNullable<T['$worker']>) & ExtraContext>, Extract<AllFixtureOptions, { scope: 'file' }>]
 } & {
   // Worker fixtures - scope: 'worker' is REQUIRED, NO TestContext access
   [K in keyof NonNullable<T['$worker']>]:
-  [ScopedFixtureFn<NonNullable<T['$worker']>[K], NonNullable<T['$worker']> & ExtraContext>, WorkerScopeFixtureOptions]
+  [ScopedFixtureFn<NonNullable<T['$worker']>[K], NonNullable<T['$worker']> & ExtraContext>, Extract<AllFixtureOptions, { scope: 'worker' }>]
 }
 
 export type InferFixturesTypes<T> = T extends TestAPI<infer C> ? C : T
